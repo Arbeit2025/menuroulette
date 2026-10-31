@@ -164,11 +164,14 @@ table{border-collapse:collapse}td,th{border-bottom:1px solid #ccc;padding:.3em .
 </ul>
 
 <h2>抽選履歴</h2>
+{% if history %}
+<form method="post" action="{{ url_for('clear_history') }}" onsubmit="return confirm('抽選履歴を全て削除しますか？')"><button type="submit">履歴を全て削除</button></form>
+{% endif %}
 <table>
-<tr><th>日時</th><th>主菜</th><th>副菜</th><th>汁物</th></tr>
+<tr><th>日時</th><th>主菜</th><th>副菜</th><th>汁物</th><th>操作</th></tr>
 {% for h in history %}
-<tr><td>{{ h.created_at }}</td><td>{{ h.main_name }}</td><td>{{ h.side_name }}</td><td>{{ h.soup_name }}</td></tr>
-{% else %}<tr><td colspan="4">履歴はまだありません</td></tr>
+<tr><td>{{ h.created_at }}</td><td>{{ h.main_name }}</td><td>{{ h.side_name }}</td><td>{{ h.soup_name }}</td><td><form method="post" action="{{ url_for('delete_history', hid=h.id) }}" style="display:inline" onsubmit="return confirm('この履歴を削除しますか？')"><button type="submit">削除</button></form></td></tr>
+{% else %}<tr><td colspan="5">履歴はまだありません</td></tr>
 {% endfor %}
 </table>
 </body></html>"""
@@ -234,6 +237,22 @@ def add_dish():
             (name, category, style),
         )
         db.commit()
+    return redirect(url_for("index"))
+
+
+@app.route("/history/<int:hid>/delete", methods=["POST"])
+def delete_history(hid):
+    db = get_db()
+    db.execute("DELETE FROM history WHERE id = ?", (hid,))
+    db.commit()
+    return redirect(url_for("index"))
+
+
+@app.route("/history/clear", methods=["POST"])
+def clear_history():
+    db = get_db()
+    db.execute("DELETE FROM history")
+    db.commit()
     return redirect(url_for("index"))
 
 

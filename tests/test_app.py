@@ -93,3 +93,45 @@ class MenuRouletteTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class HistoryDeleteTest(unittest.TestCase):
+    def setUp(self):
+        app_module.init_db()
+        self.client = app_module.app.test_client()
+        with app_module.app.app_context():
+            conn = app_module.get_db()
+            conn.execute("DELETE FROM custom_dishes")
+            conn.execute("DELETE FROM history")
+            conn.commit()
+
+    def _count(self):
+        with app_module.app.app_context():
+            conn = app_module.get_db()
+            return conn.execute("SELECT COUNT(*) AS c FROM history").fetchone()["c"]
+
+    def _draw(self):
+        self.client.post("/draw", data={"mode": "set", "style": ""})
+
+    def test_delete_one_history_entry(self):
+        self._draw()
+        self._draw()
+        self.assertEqual(self._count(), 2)
+        with app_module.app.app_context():
+            conn = app_module.get_db()
+            hid = conn.execute("SELECT id FROM history ORDER BY id LIMIT 1").fetchone()["id"]
+        res = self.client.post(f"/history/{hid}/delete")
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(self._count(), 1)
+
+    def test_clear_history(self):
+        self._draw()
+        self._draw()
+        res = self.client.post("/history/clear")
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(self._count(), 0)
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn("履歴はまだありません", body)
+
+    def test_delete_missing_history_redirects(self):
+        res = self.client.post("/history/99999/delete")
+        self.assertEqual(res.status_code, 302)
